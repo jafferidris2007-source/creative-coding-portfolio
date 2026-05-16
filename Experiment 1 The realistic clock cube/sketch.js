@@ -6,9 +6,10 @@ function preload() {
 }
 
 function setup() {
-  // Define 3D sketch by setting the mode as WEBGL
-  createCanvas(710, 400, WEBGL);
- // Use degrees (from 0 to 360) instead of radians (from 0 to TWO_PI) for rotation calculations
+  // Define 3D sketch by setting the mode as WEBGL and filling the full window size
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  
+  // Use degrees (from 0 to 360) instead of radians (from 0 to TWO_PI) for rotation calculations
   angleMode(DEGREES);
   
   // Apply typeface styling
@@ -102,4 +103,9 @@ function drawTimeRing(rotationAngle, distance, size, step, handColor, speedMult)
     pop();
   }
   pop();
+}
+
+// Keep the code crisp and fitting correctly if the browser window size changes mid-view
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
 }
