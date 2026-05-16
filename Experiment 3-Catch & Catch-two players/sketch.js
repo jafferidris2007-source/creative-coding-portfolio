@@ -1,39 +1,46 @@
-// Declarations for players, environment, and other variables
+// Keeping track of our players, the map layout, and game state variables
 let p1, p2;
 let platforms = [];
 let gameTimer = 45;
 let lastTime;
 let gameOver = false;
 let winner = "";
-let tagCooldown = 0; // Prevent double tag
+let tagCooldown = 0; // Stop instant double-tagging right after a hit
 let gameState = "START"; 
-let zoom = 1; // Used for dynamic camera
+let zoom = 1; // For that sweet dynamic camera scale effect
 
 function setup() {
   createCanvas(windowWidth, windowHeight); 
   resetGame();
 }
 
-// Reset all variables and positions
+// Clean slate for a fresh round
 function resetGame() {
-  // Decide randomly who starts as the Tagger
+  // Flip a coin to see who has to chase first
   let p1StartsAsTagger = random() > 0.5;
 
-  p1 = new Player(100, 600, color(255, 50, 50), {up: 87, left: 65, right: 68}, p1StartsAsTagger);
-  p2 = new Player(1400, 600, color(0, 100, 255), {up: 38, left: 37, right: 39}, !p1StartsAsTagger);
+  // Setup players with just ONE action key each (A for Player 1, L for Player 2)
+  p1 = new Player(100, 650, color(255, 50, 50), 65, p1StartsAsTagger, "PLAYER 1 (A)");
+  p2 = new Player(1100, 650, color(0, 100, 255), 76, !p1StartsAsTagger, "PLAYER 2 (L)");
   
-  // Define the platforms' positions and sizes
+  // Building the arena brick by brick (Tuned specifically for 1-key platforming flow)
   platforms = [];
-  platforms.push(new Platform(-500, 800, 2500, 4000)); // Ground floor
-  platforms.push(new Platform(0, 600, 300, 20));
-  platforms.push(new Platform(1200, 600, 300, 20));
-  platforms.push(new Platform(500, 650, 500, 20));
-  platforms.push(new Platform(200, 400, 250, 20));
-  platforms.push(new Platform(1050, 400, 250, 20));
-  platforms.push(new Platform(600, 300, 300, 20));
-  platforms.push(new Platform(0, 210, 250, 20));
-  platforms.push(new Platform(1300, 210, 250, 20));
-  platforms.push(new Platform(500, 50, 500, 20));
+  platforms.push(new Platform(-500, 800, 2500, 4000)); // The safety net/ground floor
+  
+  // --- BOTTOM LEVEL TRANSITIONS ---
+  platforms.push(new Platform(0, 660, 350, 20));       // Low Left
+  platforms.push(new Platform(850, 660, 350, 20));     // Low Right
+  platforms.push(new Platform(400, 560, 400, 20));     // Center Stepping Stone
+  
+  // --- MID LEVEL BRIDGES ---
+  platforms.push(new Platform(100, 440, 300, 20));     // Mid Left
+  platforms.push(new Platform(800, 440, 300, 20));     // Mid Right
+  platforms.push(new Platform(350, 320, 500, 20));     // Big Center Runway
+  
+  // --- HIGH LEVEL APEX ---
+  platforms.push(new Platform(150, 190, 250, 20));     // High Left Escape
+  platforms.push(new Platform(800, 190, 250, 20));     // High Right Escape
+  platforms.push(new Platform(450, 70, 300, 20));      // The High Roof
 
   gameTimer = 45;
   lastTime = millis();
@@ -42,9 +49,9 @@ function resetGame() {
 }
 
 function draw() {
-  background(135, 206, 235); // Sky blue background
+  background(135, 206, 235); // Nice, calm sky blue to contrast the chaos
 
-  // Screen routing based on current game state
+  // Figure out which screen the players should be looking at
   if (gameState === "START") {
     drawStartScreen();
   } else if (gameState === "PLAY") {
@@ -56,15 +63,15 @@ function draw() {
   }
 }
 
-// Move characters and handle dynamic camera
+// Handle all the physics, inputs, and camera positioning mid-match
 function updateGame() {
   updateTimer();
   
-  // Midpoint between players for camera positioning
+  // Find the exact middle point between both players to center the screen
   let midX = (p1.x + p2.x) / 2;
   let midY = (p1.y + p2.y) / 2;
   
-  // Zoom based on distance: zoom out when far, zoom in when near
+  // Camera zoom magic: dynamically pull back when they scatter, zoom in when they get close
   let distPad = 150; 
   let dx = abs(p1.x - p2.x) + distPad;
   let dy = abs(p1.y - p2.y) + distPad;
@@ -72,7 +79,7 @@ function updateGame() {
   let zoomY = height / dy;
   zoom = lerp(zoom, min(zoomX, zoomY, 1.0), 0.1); 
   
-  // Camera transformations
+  // Shift and scale everything into the camera's perspective
   push();
   translate(width/2, height/2);
   scale(zoom);
@@ -90,48 +97,40 @@ function updateGame() {
 }
 
 function drawStartScreen() {
-  fill(0, 150); // Dark overlay
+  fill(0, 150); // Dim the background to make the text pop
   rectMode(CORNER);
   rect(0, 0, width, height);
 
   textAlign(CENTER);
   fill(255);
   textSize(50);
-  text("SUPER TAG", width / 2, height / 2 - 150);
+  text("1-KEY SUPER TAG", width / 2, height / 2 - 150);
 
-  // Render characters on start screen
-  let p1MenuX = width / 2 - 150;
-  let p2MenuX = width / 2 + 150;
+  // Set up dummy coordinate targets to draw the menu previews
+  let p1MenuX = width / 2 - 200;
+  let p2MenuX = width / 2 + 200;
   let menuY = height / 2;
 
-  let oldP1 = {x: p1.x, y: p1.y};
-  let oldP2 = {x: p2.x, y: p2.y};
-  p1.x = p1MenuX; p1.y = menuY;
-  p2.x = p2MenuX; p2.y = menuY;
-
-  p1.show();
-  p2.show();
-
-  // Fix positions to not disrupt the logic
-  p1.x = oldP1.x; p1.y = oldP1.y;
-  p2.x = oldP2.x; p2.y = oldP2.y;
-
   fill(255);
-  textSize(20);
-  text("PLAYER ONE", p1MenuX, menuY + 60);
-  text("PLAYER TWO", p2MenuX, menuY + 60);
+  textSize(24);
+  text("PLAYER ONE", p1MenuX, menuY - 40);
+  textSize(16);
+  text("Press [ A ] to Jump\nPress in Air to Flip Dir", p1MenuX, menuY + 20);
 
-  // Button play functionality and styles
+  text("PLAYER TWO", p2MenuX, menuY - 40);
+  text("Press [ L ] to Jump\nPress in Air to Flip Dir", p2MenuX, menuY + 20);
+
+  // Play button hover effects and boundary checks
   let btnW = 200;
   let btnH = 60;
   let btnX = width / 2 - btnW / 2;
   let btnY = height / 2 + 120;
 
   if (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH) {
-    fill(100, 255, 100); // Green hover for button
+    fill(100, 255, 100); // Light up green when hovered
     cursor(HAND);
   } else {
-    fill(0, 180, 0); // Green default for button
+    fill(0, 180, 0); // Solid green idle state
     cursor(ARROW);
   }
 
@@ -143,7 +142,7 @@ function drawStartScreen() {
 }
 
 function mousePressed() {
-  // Starts game when play button is clicked
+  // Let them click the play button to start the action
   if (gameState === "START") {
     let btnW = 200;
     let btnH = 60;
@@ -160,16 +159,15 @@ function mousePressed() {
 
 function keyPressed() {
   if (gameState === "PLAY") {
-    // Jump function for P1 and P2
-    if (p1 && keyCode === p1.controls.up && p1.onGround) {
-      p1.vy = p1.jumpForce;
-      p1.onGround = false;
+    // Listen for the specific player keys and fire off their actions
+    if (p1 && keyCode === p1.controlKey) {
+      p1.handleSingleKeyPress();
     }
-    if (p2 && keyCode === p2.controls.up && p2.onGround) {
-      p2.vy = p2.jumpForce;
-      p2.onGround = false;
+    if (p2 && keyCode === p2.controlKey) {
+      p2.handleSingleKeyPress();
     }
-    // Restart logic
+    
+    // Restart logic: checking specifically for the 'R' key to clear the game over state
     if (gameOver && (key === 'r' || key === 'R')) {
       resetGame();
     }
@@ -177,12 +175,12 @@ function keyPressed() {
 }
 
 function updateTimer() {
-  // Timer decreases by one each second
+  // Simple 1-second interval clock ticking down
   if (millis() - lastTime >= 1000) {
     gameTimer--;
     lastTime = millis();
   }
-  // Game ends if timer expires, Tagger lost the game
+  // Time's up! If you're still it, you lose.
   if (gameTimer <= 0) {
     gameOver = true;
     winner = p1.isTagger ? "PLAYER 2" : "PLAYER 1";
@@ -190,22 +188,22 @@ function updateTimer() {
 }
 
 function drawUI() {
-  // Render Heads Up Display
+  // Draw the HUD box in the corner
   fill(0, 100);
   noStroke();
   rectMode(CORNER);
-  rect(20, 20, 200, 80, 10);
+  rect(20, 20, 240, 80, 10);
   fill(255);
   textAlign(LEFT);
   textSize(24);
   text("TIME: " + gameTimer, 40, 55);
   textSize(12);
-  text("P1: WASD | P2: ARROWS", 40, 85);
+  text("P1: Key [ A ]  |  P2: Key [ L ]", 40, 85);
   
-  // If recently tagged, display cooldown bar
+  // Draw a shrinking timer bar while the tag immunity is active
   if (tagCooldown > 0) {
     fill(255);
-    rect(20, 110, map(tagCooldown, 0, 60, 0, 200), 5);
+    rect(20, 110, map(tagCooldown, 0, 60, 0, 240), 5);
   }
 }
 
@@ -213,68 +211,83 @@ function checkTag() {
   let d = dist(p1.x, p1.y, p2.x, p2.y);
   if (tagCooldown > 0) tagCooldown--;
 
-  // Detect collision between characters
+  // If they run into each other and the cooldown is clear, swap roles!
   if (d < 35 && tagCooldown === 0) {
     p1.isTagger = !p1.isTagger;
     p2.isTagger = !p2.isTagger;
-    tagCooldown = 60; // 60 frame buffer 
+    tagCooldown = 60; // Give them a 60-frame breathing room window to escape 
   }
 }
 
 class Player {
-  constructor(x, y, col, controls, tagger) {
+  constructor(x, y, col, controlKey, tagger, name) {
     this.x = x; this.y = y;
     this.w = 35; this.h = 35;
     this.col = col;
-    this.controls = controls;
+    this.controlKey = controlKey;
     this.isTagger = tagger;
-    this.vy = 0; this.vx = 0;
+    this.name = name;
+    this.vy = 0; 
+    this.dir = random() > 0.5 ? 1 : -1; // Coin flip for initial running direction (1 = Right, -1 = Left)
     this.gravity = 0.6;
-    this.jumpForce = -16; 
-    this.baseSpeed = 7;
+    this.jumpForce = -15; 
+    this.baseSpeed = 6;
     this.onGround = false;
+  }
+
+  handleSingleKeyPress() {
+    if (this.onGround) {
+      this.vy = this.jumpForce;
+      this.onGround = false;
+    } else {
+      this.dir *= -1; // The secret sauce: tapping in mid-air instantly flips your direction
+    }
   }
 
   update() {
-    // Tagger moves 15% faster than other character
+    // Give the tagger a 15% speed buff so they can actually catch up
     let currentSpeed = this.isTagger ? this.baseSpeed * 1.15 : this.baseSpeed;
     
-    // Horizontal movement
-    if (keyIsDown(this.controls.left)) this.vx = -currentSpeed;
-    else if (keyIsDown(this.controls.right)) this.vx = currentSpeed;
-    else this.vx = 0;
+    // Constant auto-running velocity application
+    let vx = this.dir * currentSpeed;
 
-    // Vertical physics
+    // Standard gravity math
     this.vy += this.gravity;
-    this.x += this.vx;
-    this.x = constrain(this.x, -450, 1950); // Bound players to arena
-  // Separately check if there is a collision for x or y axis, to avoid sticking
-    this.resolveCollisions(true);
+    this.x += vx;
+    this.x = constrain(this.x, -450, 1950); // Keep them contained inside our world boundaries
+    
+    // Check X and Y axis collisions independently so the cubes don't awkwardly glue to walls
+    this.resolveCollisions(true, vx);
     this.y += this.vy;
     this.onGround = false;
-    this.resolveCollisions(false);
+    this.resolveCollisions(false, vx);
   }
 
-  resolveCollisions(isHorizontal) {
+  resolveCollisions(isHorizontal, vx) {
     for (let plat of platforms) {
-      // Standard AABB (Axis-Aligned Bounding Box) collision detection
+      // Classic box-to-box overlap boundary check
       if (this.x + this.w/2 > plat.x && 
           this.x - this.w/2 < plat.x + plat.w &&
           this.y + this.h/2 > plat.y && 
           this.y - this.h/2 < plat.y + plat.h) {
         
         if (isHorizontal) {
-          // Horizontal collision detection
-          if (this.vx > 0) this.x = plat.x - this.w/2;
-          if (this.vx < 0) this.x = plat.x + plat.w + this.w/2;
-          this.vx = 0;
+          // Hit a side wall? Instantly bounce back the other way so they don't get stuck running into a wall.
+          if (vx > 0) {
+            this.x = plat.x - this.w/2;
+            this.dir = -1; 
+          }
+          if (vx < 0) {
+            this.x = plat.x + plat.w + this.w/2;
+            this.dir = 1;  
+          }
         } else {
-          // Vertical collision detection
-          if (this.vy > 0) { // Falling
+          // Handle ceiling bumps and floor landings
+          if (this.vy > 0) { // Landing soundly on top of a platform
             this.y = plat.y - this.h/2;
             this.vy = 0;
             this.onGround = true;
-          } else if (this.vy < 0) { // Jumping into ceiling
+          } else if (this.vy < 0) { // Bonking head on the bottom of a platform
             this.y = plat.y + plat.h + this.h/2;
             this.vy = 0;
           }
@@ -285,14 +298,18 @@ class Player {
 
   show() {
     rectMode(CENTER);
-    // Indicator for cooldown of tags
+    // Fade the color alpha out a bit if they are currently immune to being tagged
     let alpha = (tagCooldown > 0) ? 150 : 255;
     let c = color(red(this.col), green(this.col), blue(this.col), alpha);
     fill(c);
     noStroke();
     rect(this.x, this.y, this.w, this.h, 5);
 
-    // White triangle on the head of the "IT" player
+    // Give them a little white eye indicator so players can see which way they're facing
+    fill(255);
+    rect(this.x + (this.dir * 10), this.y - 5, 6, 6);
+
+    // Render the "IT" spike crown above the tagger's head
     if (this.isTagger) {
       fill(255, alpha);
       noStroke();
@@ -310,17 +327,17 @@ class Platform {
     this.x = x; this.y = y; this.w = w; this.h = h;
   }
   show() {
-    fill(255, 100, 150); // Body of platform with a pinkish hue
+    fill(255, 100, 150); // Give the platform base a pinkish block look
     rectMode(CORNER);
     noStroke();
     rect(this.x, this.y, this.w, this.h, 5);
-    fill(50, 220, 50); // Grass layer with green color at the top
+    fill(50, 220, 50); // Top it off with a bright green grass trim layer
     rect(this.x, this.y, this.w, 8, 2);
   }
 }
 
 function drawGameOver() {
-  fill(0, 180); // Semi-transparent dark overlay
+  fill(0, 180); // Darken the scene on game over
   rectMode(CORNER);
   rect(0, 0, width, height);
   textAlign(CENTER);
@@ -333,7 +350,7 @@ function drawGameOver() {
   text("PRESS 'R' TO RESTART", width/2, height/2 + 100);
 }
 
-// Full screen responsiveness of the game
+// Keep the game crisp and fitting correctly if the browser window size changes
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
